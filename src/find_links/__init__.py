@@ -12,3 +12,4 @@ class FindLinks:
             raise Exception(f"Cannot get information of the {self.url}")
 
         print(response.status_code)
+
