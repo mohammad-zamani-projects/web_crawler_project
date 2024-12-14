@@ -18,3 +18,8 @@ class FileStore(StoreBase):
         with open(file_path, "w") as f:
             for link in self.links:
                 f.write(link.get("href") + "\n")
+
+
+class DataBaseStore(StoreBase):
+    def store_links(self):
+        raise NotImplementedError
