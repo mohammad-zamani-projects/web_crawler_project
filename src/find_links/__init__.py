@@ -12,7 +12,9 @@ class GetPagesHtml:
         except Exception:
             raise Exception(f"Cannot get information of the {self.url}")
 
-        print(response.status_code)
+        if (response_status := response.status_code) != 200:
+            print(f"The response of the {self.url} is {response_status}")
+
         return response
 
 

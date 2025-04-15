@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-# Wanted urs
-URL = "https://divar.ir/s/tehran/vehicles"
+# Wanted url
+URL = "https://divar.ir/s/tehran/car"
 
 # How to store links
 STORE_MODE = "file"  # choices: ["file", "database"]
