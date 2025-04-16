@@ -39,9 +39,3 @@ class DataBaseStore(StoreBase):
                 ad_link=ad['ad_link'],
                 crawled_time=datetime.datetime.now()
             ).save()
-
-
-
-
-
-
