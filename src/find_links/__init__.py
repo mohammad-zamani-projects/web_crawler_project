@@ -1,28 +1,64 @@
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
+from time import sleep
+from setup.config import URL, NUMBER_PAGE_SCROLL
+import chromedriver_autoinstaller
 
 
-class GetPagesHtml:
-    def __init__(self, url):
-        self.url = url
+class GetPageInfo:
 
-    def request_html(self):
-        try:
-            response = requests.get(self.url)
-        except Exception:
-            raise Exception(f"Cannot get information of the {self.url}")
+    def __init__(self):
+        # Autoinstall chrome drive (if necessary)
+        chromedriver_autoinstaller.install()
+        self.options = webdriver.ChromeOptions()
+        self.options.add_argument('--headless')  # If you comment this line, chrome opened in runtime
+        self.options.add_argument('--disable-gpu')
+        self.options.add_argument('--no-sandbox')
+        self.collected_ads = []
 
-        if (response_status := response.status_code) != 200:
-            print(f"The response of the {self.url} is {response_status}")
+    def get_page_info(self):
+        while True:
+            # Running Chrome
+            driver = webdriver.Chrome(options=self.options)
+            driver.get(URL)
+            sleep(3)
 
-        return response
+            # Scrolling and get page data
+            for _ in range(NUMBER_PAGE_SCROLL):
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                sleep(3)  # Wait to load ads
 
+                ads = driver.find_elements(By.CSS_SELECTOR, "div.kt-post-card__body")
 
-class FindLinks:
-    def __init__(self, html_doc):
-        self.html_doc = html_doc
+                for ad in ads:
+                    try:
+                        title = ad.find_element(By.TAG_NAME, "h2").text
+                        # used_amount = ad.find_element(By.CSS_SELECTOR, "div.kt-post-card__description").text
+                        used_amount = ad.find_elements(By.CSS_SELECTOR, "div.kt-post-card__description")[0].text
+                        price = ad.find_elements(By.CSS_SELECTOR, "div.kt-post-card__description")[1].text
+                        location = ad.find_element(By.CSS_SELECTOR, "span.kt-post-card__bottom-description").text
+                        ad_link = ad.find_element(By.XPATH, "..").get_attribute("href")
+                        self.collected_ads.append((title, used_amount, price, location, ad_link))
+                    except (StaleElementReferenceException, NoSuchElementException):
+                        print("A problem has occurred in convert links.")
 
-    def get_links(self):
-        soup = BeautifulSoup(self.html_doc, "html.parser")
-        soup_list = soup.find_all("a", attrs={"class": "kt-post-card__action"})  # find link by unique name of class
-        return soup_list
+            driver.quit()
+            if len(self.collected_ads) > 0:
+                break
+            else:
+                print("Failed to get ads, Trying one more time...")
+
+        return self.collected_ads
+
+    def get_ads(self, ads_list):
+        for (title, used_amount, price, location, ad_link) in self.collected_ads:
+            ads_list.append(
+                {
+                    "title": title,
+                    "used_amount": used_amount,
+                    "price": price,
+                    "location": location,
+                    "ad_link": ad_link
+                }
+            )
