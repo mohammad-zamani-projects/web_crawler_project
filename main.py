@@ -1,4 +1,5 @@
 import sys
+import time
 
 from bs4 import BeautifulSoup
 
@@ -25,76 +26,61 @@ from src.store_links import FileStore
 if __name__ == "__main__":
 
     from selenium import webdriver
-    from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.chrome.options import Options
-    import time
+    from selenium.webdriver.chrome.service import Service
+    from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
+    from time import sleep
+    import chromedriver_autoinstaller
 
-    ads = list()
+    # Autoinstall chrome drive (if necessary)
+    chromedriver_autoinstaller.install()
 
-    # 🛠️ تنظیمات Chrome
-    options = Options()
-    # options.add_argument("--headless")  # برای اجرا بدون باز شدن مرورگر
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920x1080")
-    options.add_argument("--lang=fa-IR")
+    # Chrome options
+    options = webdriver.ChromeOptions()
+    # options.add_argument('--headless')  # If you comment this line, chrome opened in runtime
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
 
-    # راه‌اندازی درایور
-    driver = webdriver.Chrome(options=options)
+    while True:
+        # Running Chrome
+        driver = webdriver.Chrome(options=options)
+        driver.get("https://divar.ir/s/tehran/car")
+        sleep(3)
 
-    # رفتن به صفحه‌ی آگهی خودروها
-    url = "https://divar.ir/s/tehran/car"
-    driver.get(url)
-    time.sleep(3)  # صبر برای لود اولیه
+        # Scrolling and get page data
+        num_scrolls = 10
+        collected_ads = []
 
-    # 🔁 اسکرول تا زمانی که محتوای جدید اضافه می‌شود
-    SCROLL_PAUSE_TIME = 2
-    last_height = driver.execute_script("return document.body.scrollHeight")
+        for _ in range(num_scrolls):
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            sleep(3)  # Wait to load ads
 
-    for _ in range(10):  # تعداد دفعات اسکرول، قابل تنظیم
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(SCROLL_PAUSE_TIME)
-        ads.extend(driver.find_elements(By.CLASS_NAME, "kt-post-card__body"))
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        if new_height == last_height:
-            break  # اگر محتوای جدیدی لود نشد، خروج
-        last_height = new_height
+            ads = driver.find_elements(By.CSS_SELECTOR, "div.kt-post-card__body")
 
-    # استخراج آگهی‌ها پس از اسکرول
-    # ads = driver.find_elements(By.CSS_SELECTOR, "div.kt-post-card__body")
+            for ad in ads:
+                try:
+                    title = ad.find_element(By.TAG_NAME, "h2").text
+                    # used_amount = ad.find_element(By.CSS_SELECTOR, "div.kt-post-card__description").text
+                    used_amount = ad.find_elements(By.CSS_SELECTOR, "div.kt-post-card__description")[0].text
+                    price = ad.find_elements(By.CSS_SELECTOR, "div.kt-post-card__description")[1].text
+                    # location = ad.find_element(By.CSS_SELECTOR, "div.kt-post-card__bottom-description").text
+                    collected_ads.append((title, used_amount, price))
+                except (StaleElementReferenceException, NoSuchElementException):
+                    continue
+        if len(collected_ads) > 0:
+            break
+        else:
+            print("Failed to get ads, Trying one more time...")
 
-    ##ads = driver.find_elements(By.CLASS_NAME, "kt-post-card__body")
+    for (title, used_amount, price) in collected_ads:
+        print(f"title: {title}")
+        print(f"used_amount: {used_amount}")
+        print(f"price: {price}")
+        print(60 * "-")
 
-    # page_source = driver.page_source
-    # soup = BeautifulSoup(page_source, "html.parser")
-    # ab = soup.find_all("div", attrs={"class": "kt-post-card__body"})
-
-    # for i in ab:
-    #     print(i)
-    #     print(40 * "-")
-
-    # print(f"✅ تعداد آگهی‌های استخراج‌شده: {len(ads)}")
-
-    for ad in ads:
-        try:
-            title = ad.text.split("\n")[0]
-            price = ad.text.split("\n")[2]
-            used_amount = ad.text.split("\n")[1]
-            location = ad.text.split("\n")[4]
-
-            # title = ad.find_element(By.XPATH, "/html/body/div[1]/div[1]/main/div[2]/div[1]/div/div/div[4]/div[1]/article/a/div/div[1]/h2").text
-            # price = ad.find_element(By.XPATH, "/html/body/div[1]/div[1]/main/div[2]/div[1]/div/div/div[5]/div[1]/article/a/div/div[1]/div[2]").text
-            # used_amount = ad.find_element(By.XPATH, "/html/body/div[1]/div[1]/main/div[2]/div[1]/div/div/div[6]/div[2]/article/a/div/div[1]/div[1]").text
-            print("🔹title:", title)
-            print("💵 price:", price)
-            print("📍 used_amount:", used_amount)
-            print("🔹 location:", used_amount)
-            print("-" * 40)
-            # print(ad.text)
-            # print(40*"-")
-
-        except Exception as e:
-            continue
+    print(20 * "#")
+    print(f"Number of ads: {len(collected_ads)}")
+    print(20 * "#")
 
     driver.quit()
 
